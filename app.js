@@ -6,6 +6,31 @@
  * https://github.com/WebBluetoothCG/web-bluetooth/blob/master/implementation-status.md
  */
 
+class Dice {
+	diceList = [
+		document.getElementById('dice1'),
+		document.getElementById('dice2'),
+		document.getElementById('dice3'),
+		document.getElementById('dice4'),
+		document.getElementById('dice5'),
+		document.getElementById('dice6'),
+	];
+
+	constructor(num = 1) {
+		this.show(num);
+	}
+
+	show(num) {
+		if (num < 1 || 6 < num) throw new Error('input from 1 to 6');
+		
+		this.diceList.forEach((dice) => {
+			dice.style.display = 'none';
+		});
+
+		this.diceList[num - 1].style.display = '';
+	}
+}
+
 const textDeviceName = document.getElementById('textDeviceName');
 const textUniqueName = document.getElementById('textUniqueName');
 const textDateTime = document.getElementById('textDateTime');
@@ -25,6 +50,7 @@ const buttonDownload = document.getElementById("button-download");
 const switchSleepMode = document.getElementById('sleepmode-switch');
 
 let leafony;
+let dice;
 
 // array of received data
 let savedData = [];
@@ -34,8 +60,7 @@ const CSV_BUFF_LEN = 1024;
 
 window.onload = function () {
 
-	clearTable();
-
+	dice = new Dice();
 };
 
 
@@ -43,7 +68,7 @@ buttonConnect.addEventListener( 'click', function () {
 
 	leafony = new Leafony();
 	leafony.onStateChange( function ( state ) {
-		updateTable( state );
+		updateDice( state );
 	} );
 
 	if ( switchSleepMode.checked ) {
@@ -66,109 +91,12 @@ buttonDisconnect.addEventListener( 'click', function () {
 	leafony.disconnect();
 	leafony = null;
 
-	clearTable();
 	buttonConnect.style.display = '';
 	buttonDisconnect.style.display = 'none';
 
 } );
 
-
-function clearTable () {
-
-	textDeviceName.innerHTML = '';
-	textUniqueName.innerHTML = '';
-	textDateTime.innerHTML = '';
-	textTemp.innerHTML = '';
-	textHumid.innerHTML = '';
-	textIllum.innerHTML = '';
-	textTilt.innerHTML = '';
-	textBatt.innerHTML = '';
-	textDice.innerHTML = '';
+function updateDice( state ) {
+	dice.show(state.dice);
 
 }
-
-
-function updateTable ( state ) {
-	let date = new Date();
-	let year     = String( date.getFullYear() );
-	let month    = ( '00' + ( date.getMonth() + 1 ) ).slice( -2 );
-	let day      = ( '00' + date.getDate() ).slice( -2 );
-	let hours    = ( '00' + date.getHours() ).slice( -2 );
-	let minutes  = ( '00' + date.getMinutes() ).slice( -2 );
-	let seconds  = ( '00' + date.getSeconds() ).slice( -2 );
-	let datetime = year + '/' + month + '/' + day + ' ' +
-				   hours + ':' + minutes + ':' + seconds;
-
-	textDeviceName.innerText = state.devn;
-	textUniqueName.innerText = state.unin;
-	textDateTime.innerText = datetime;
-	textTemp.innerText = state.temp;
-	textHumid.innerText = state.humd;
-	textIllum.innerText = state.illm;
-	textTilt.innerText = state.tilt;
-	textBatt.innerText = state.batt;
-	textDice.innerText = state.dice;
-
-	// Create array of reveived data and sensors data
-	let darray = new Array(
-		datetime,
-		state.devn,
-		state.unin,
-		state.temp,
-		state.humd,
-		state.illm,
-		state.tilt,
-		state.batt,
-		state.dice);
-
-	// stack reveived data up to CSV_BUFF_LEN
-	if (savedData.length >= CSV_BUFF_LEN) {
-		savedData.shift();
-	}
-	savedData.push( darray );
-}
-
-
-buttonLedPls.addEventListener ( 'click', function () {
-
-	console.log( 'LED Plus Button Clicked' );
-	leafony.sendCommand( 'PLS' );
-
-});
-
-
-buttonLedMns.addEventListener( 'click', function () {
-
-	console.log( 'LED Minus Button Clicked' );
-	leafony.sendCommand( 'MNS' );
-
-});
-
-
-buttonDownload.addEventListener( 'click', function () {
-
-	let bom_utf_8 = new Uint8Array( [ 0xEF, 0xBB, 0xBF ] );
-	let csvText = "";
-
-	csvText += "Datetime,Device Name,Unique Name,Temp,Humid,Light,Tilt,BattVolt,Dice\n";
-	// Write all received data in savedData
-	for ( var i = 0; i < savedData.length; i++ ) {
-		for ( var j = 0; j < savedData[i].length; j++ ) {
-			csvText += savedData[i][j];
-			if ( j == savedData[i].length - 1 ) csvText += "\n";
-			else csvText += ",";
-		}
-	}
-
-	let blob = new Blob( [ bom_utf_8, csvText ], { "type": "text/csv" } );
-
-	let url = window.URL.createObjectURL( blob );
-
-	let downloader = document.getElementById( "downloader" );
-	downloader.download = "data.csv";
-	downloader.href = url;
-	$( "#downloader" )[0].click();
-
-	delete csvText;
-	delete blob;
-});
